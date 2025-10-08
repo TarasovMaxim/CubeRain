@@ -5,18 +5,21 @@ public class CubeSpawner : MonoBehaviour
 {
     [SerializeField] private GameObject _platform;
     [SerializeField] private float _height = 20;
-    private ObjectPool<GameObject> _pool;
+    [SerializeField] private Cube _cubePrefab;
+    private ObjectPool<Cube> _pool;
+    private int _defaultCapacity=5;
+    private int _maxSize=10;
 
     private void Awake()
     {
-        _pool = new ObjectPool<GameObject>(
+        _pool = new ObjectPool<Cube>(
             CreateCube,
             OnGetCube,
             OnReleaseCube,
             OnDestroyCube,
             false,
-            5,
-            10
+            _defaultCapacity,
+            _maxSize
         );
     }
 
@@ -30,45 +33,30 @@ public class CubeSpawner : MonoBehaviour
         return position;
     }
 
-    private GameObject CreateCube()
+    private Cube CreateCube()
     {
-        GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        cube.transform.position = GeneratePosition();
-        cube.AddComponent<Rigidbody>();
-        cube.AddComponent<Cube>();
+        Cube cube = Instantiate(_cubePrefab);
         return cube;
     }
 
     private void Start()
     {
-        InvokeRepeating(nameof(SpawnCube), 0.5f, 1f);
+        StartCoroutine(SpawnCube());
     }
 
-    private void SpawnCube()
-    {
-        _pool.Get();
-    }
-
-    private void OnGetCube(GameObject cube)
+    private void OnGetCube(Cube cube)
     {
         cube.transform.position = GeneratePosition();
-
-        if (cube.TryGetComponent<Cube>(out Cube cubeComponent))
-        {
-            cubeComponent.ReleaseAction = () => StartCoroutine(DelayedRelease(cube));
-            cubeComponent.ContactWithPlatform += cubeComponent.ReleaseAction;
-        }
+        cube.ReleaseAction = () => StartCoroutine(DelayedRelease(cube));
+        cube.ContactWithPlatform += cube.ReleaseAction;
     }
 
-    private void OnReleaseCube(GameObject cube)
+    private void OnReleaseCube(Cube cube)
     {
-        if (cube.TryGetComponent<Cube>(out Cube cubeComponent))
-        {
-            cubeComponent.ContactWithPlatform -= cubeComponent.ReleaseAction;
-        }
+        cube.ContactWithPlatform -= cube.ReleaseAction;
     }
 
-    private System.Collections.IEnumerator DelayedRelease(GameObject cube)
+    private System.Collections.IEnumerator DelayedRelease(Cube cube)
     {
         float minDelay = 2f;
         float maxDelay = 5f;
@@ -76,7 +64,17 @@ public class CubeSpawner : MonoBehaviour
         _pool.Release(cube);
     }
 
-    private void OnDestroyCube(GameObject cube)
+    private System.Collections.IEnumerator SpawnCube()
+    {
+        while (enabled)
+        {
+            float delay = 1f;
+            yield return new WaitForSeconds(delay);
+            _pool.Get();
+        }
+    }
+
+    private void OnDestroyCube(Cube cube)
     {
         Destroy(cube);
     }
