@@ -7,8 +7,8 @@ public class CubeSpawner : MonoBehaviour
     [SerializeField] private float _height = 20;
     [SerializeField] private Cube _cubePrefab;
     private ObjectPool<Cube> _pool;
-    private int _defaultCapacity=5;
-    private int _maxSize=10;
+    private int _defaultCapacity = 5;
+    private int _maxSize = 10;
 
     private void Awake()
     {
@@ -46,14 +46,21 @@ public class CubeSpawner : MonoBehaviour
 
     private void OnGetCube(Cube cube)
     {
+        cube.gameObject.SetActive(true);
         cube.transform.position = GeneratePosition();
-        cube.ReleaseAction = () => StartCoroutine(DelayedRelease(cube));
-        cube.ContactWithPlatform += cube.ReleaseAction;
+        //cube.ReleaseAction = () => StartCoroutine(DelayedRelease(cube));
+        cube.ContactWithPlatform += OnCubeRelease;
+    }
+
+    private void OnCubeRelease(Cube cube)
+    {
+        StartCoroutine(DelayedRelease(cube));
     }
 
     private void OnReleaseCube(Cube cube)
     {
-        cube.ContactWithPlatform -= cube.ReleaseAction;
+        cube.ContactWithPlatform -= OnCubeRelease;
+        cube.gameObject.SetActive(false);
     }
 
     private System.Collections.IEnumerator DelayedRelease(Cube cube)
@@ -70,12 +77,13 @@ public class CubeSpawner : MonoBehaviour
         {
             float delay = 1f;
             yield return new WaitForSeconds(delay);
-            _pool.Get();
+            var cube = _pool.Get();
+            //cube.gameObject.SetActive(true);
         }
     }
 
     private void OnDestroyCube(Cube cube)
     {
-        Destroy(cube);
+        Destroy(cube.gameObject);
     }
 }
